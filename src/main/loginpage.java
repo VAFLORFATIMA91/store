@@ -5,10 +5,13 @@
  */
 package main;
 
-/**
- *
- * @author Fatima
- */
+import config.config;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import javax.swing.JOptionPane;
+import java.security.MessageDigest;
+
 public class loginpage extends javax.swing.JFrame {
 
     /**
@@ -29,6 +32,8 @@ public class loginpage extends javax.swing.JFrame {
 
         jPanel1 = new javax.swing.JPanel();
         jPanel2 = new javax.swing.JPanel();
+        jLabel10 = new javax.swing.JLabel();
+        jLabel11 = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
         jLabel3 = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
@@ -46,15 +51,35 @@ public class loginpage extends javax.swing.JFrame {
 
         jPanel2.setBackground(new java.awt.Color(153, 255, 255));
 
+        jLabel10.setFont(new java.awt.Font("Tahoma", 1, 48)); // NOI18N
+        jLabel10.setText("SmartStock");
+
+        jLabel11.setFont(new java.awt.Font("Tahoma", 1, 48)); // NOI18N
+        jLabel11.setForeground(new java.awt.Color(255, 0, 51));
+        jLabel11.setText("System");
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 411, Short.MAX_VALUE)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(114, 114, 114)
+                        .addComponent(jLabel11))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(jLabel10)))
+                .addContainerGap(119, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 768, Short.MAX_VALUE)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(24, 24, 24)
+                .addComponent(jLabel10)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel11)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         jLabel3.setFont(new java.awt.Font("Tahoma", 1, 24)); // NOI18N
@@ -162,7 +187,7 @@ public class loginpage extends javax.swing.JFrame {
                 .addComponent(jLabel1)
                 .addGap(76, 76, 76)
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(107, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -180,12 +205,110 @@ public class loginpage extends javax.swing.JFrame {
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
 
+    private String hashPassword(String password) {
+    try {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] hash = md.digest(password.getBytes("UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    } catch (Exception e) {
+        return null;
+    }
+}
+
+    private boolean isValidEmail(String email) {
+    return email.matches("^[A-Za-z0-9+_.-]+@(.+)$");
+}
+
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        // TODO add your handling code here:
+String email = jTextField2.getText().trim();
+    String password = jTextField1.getText().trim();
+
+    // Empty fields validation
+    if (email.isEmpty() || password.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "Please fill in all fields");
+        return;
+    }
+
+    // Email format validation
+    if (!isValidEmail(email)) {
+        JOptionPane.showMessageDialog(this, "Invalid email format");
+        return;
+    }
+
+    // Password length validation
+    if (password.length() < 6) {
+        JOptionPane.showMessageDialog(this, "Password must be at least 6 characters");
+        return;
+    }
+
+    try {
+        Connection con = config.connectDB();
+        if (con == null) {
+            JOptionPane.showMessageDialog(this, "Database connection failed");
+            return;
+        }
+
+        String sql = "SELECT password, status, role FROM tbl_users WHERE email=?";
+
+        PreparedStatement pst = con.prepareStatement(sql);
+        pst.setString(1, email);
+
+        ResultSet rs = pst.executeQuery();
+
+        if (!rs.next()) {
+            JOptionPane.showMessageDialog(this, "Email not registered");
+            return;
+        }
+
+        String dbPassword = rs.getString("password");
+        String status = rs.getString("status");
+        String role = rs.getString("role");
+
+        if (!dbPassword.equals(hashPassword(password))) {
+            JOptionPane.showMessageDialog(this, "Incorrect password");
+            return;
+        }
+
+        if (!status.equalsIgnoreCase("APPROVED")) {
+            JOptionPane.showMessageDialog(this,
+                "Your account is not yet approved by the admin.");
+            return;
+        }
+
+
+if (role.equalsIgnoreCase("ADMIN")) {
+
+    JOptionPane.showMessageDialog(this, "Welcome Admin!");
+    adminDashboard admin = new adminDashboard();
+    admin.setVisible(true);
+
+} else if (role.equalsIgnoreCase("CASHIER")) {
+
+    JOptionPane.showMessageDialog(this, "Welcome Cashier!");
+    userDashboard cashier = new userDashboard();
+    cashier.setVisible(true);
+
+} else {
+    JOptionPane.showMessageDialog(this, "Invalid user role");
+    return;
+}
+        // SUCCESS LOGIN
+        JOptionPane.showMessageDialog(this, "Login successful!");
+
+        this.dispose();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+    }        
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
@@ -213,6 +336,8 @@ public class loginpage extends javax.swing.JFrame {
     private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel10;
+    private javax.swing.JLabel jLabel11;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
